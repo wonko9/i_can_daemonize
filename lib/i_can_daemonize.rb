@@ -68,6 +68,8 @@ $:.unshift(File.dirname(__FILE__)) unless
         elsif ARGV.include?('start')
           @instances ||= 1
           @running = true
+        elsif ARGV.include?('restart')
+          restart
         else
           puts @opts.help
         end
@@ -127,6 +129,7 @@ $:.unshift(File.dirname(__FILE__)) unless
             safefork do
               add_pid_to_pidfile
               trap("TERM") { exit(0) }
+              trap("HUP") { restart_self }
               sess_id = Process.setsid
               reopen_filehandes
               @before ||= {} 
@@ -155,11 +158,13 @@ $:.unshift(File.dirname(__FILE__)) unless
         STDOUT.reopen(log_file, "a")
         STDOUT.sync = true          
         STDERR.reopen(STDOUT)
-        if @log_prefix
+        if @log_prefix                            
           def STDOUT.write(string)
-            if string and not string.rstrip.empty?
-              # super(string)
+            if @no_prefix
+              @no_prefix = false if string.last == "\n"
+            else
               string = LOG_FORMAT % [$$,Time.now.strftime("%Y/%m/%d %H:%M:%S"),string]
+              @no_prefix = true              
             end
             super(string)
           end
@@ -235,10 +240,6 @@ $:.unshift(File.dirname(__FILE__)) unless
         end
       end
 
-      def restart
-        ### MUST IMPLEMENT  ## RESTART WITH @argv
-      end                 
-
       ################################################################################
       # stop the daemon, nicely at first, and then forcefully if necessary
       def stop(number_of_pids_to_stop=0)
@@ -250,21 +251,39 @@ $:.unshift(File.dirname(__FILE__)) unless
           exit
         end
         pids.each_with_index do |pid,ii|
-          begin
-            $stdout.puts("stopping pid: #{pid} #{script_name}...")
-            Process.kill("TERM", pid)
-            30.times { Process.kill(0, pid); sleep(0.5) }
-            $stdout.puts("using kill -9 #{pid}")
-            Process.kill(9, pid)
-            puts "ii == (number_of_pids_to_stop - 1) #{ii} == #{(number_of_pids_to_stop - 1)}"
-          rescue Errno::ESRCH => e
-            $stdout.puts("process #{pid} has stopped")
-          ensure
-            break if ii == (number_of_pids_to_stop - 1)
-          end
+          stop_pid(pid)
+          break if ii == (number_of_pids_to_stop - 1)
+        end
+      end     
+      
+      def stop_pid(pid)
+        begin
+          $stdout.puts("stopping pid: #{pid} #{script_name}...")
+          Process.kill("TERM", pid)
+          30.times { Process.kill(0, pid); sleep(0.5) }
+          $stdout.puts("using kill -9 #{pid}")
+          Process.kill(9, pid)
+          puts "ii == (number_of_pids_to_stop - 1) #{ii} == #{(number_of_pids_to_stop - 1)}"
+        rescue Errno::ESRCH => e
+          $stdout.puts("process #{pid} has stopped")
         end
       end
-
+            
+      def restart_self
+        puts "restarting pid: #{$$}"
+        @running = false 
+        remove_self_from_pidfile
+        system("#{$0} #{ARGV.join(' ')}")        
+        stop_pid($$)
+      end
+      
+      def restart
+        pids = read_pid_file
+        pids.each do |pid|
+          Process.kill("HUP",pid)
+        end
+      end
+      
       ################################################################################
       def safefork (&block)
         @fork_tries ||= 0
