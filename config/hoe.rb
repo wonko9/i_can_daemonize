@@ -1,10 +1,10 @@
-require 'i_can_damonize/version'
+require 'i_can_daemonize/version'
 
 AUTHOR = 'Adam Pisoni'  # can also be an array of Authors
 EMAIL = "apisoni@geni.com"
 DESCRIPTION = "Hasslefree way to create Daemons"
-GEM_NAME = 'i_can_damonize' # what ppl will type to install your gem
-RUBYFORGE_PROJECT = 'i_can_damonize' # The unix name for your project
+GEM_NAME = 'i_can_daemonize' # what ppl will type to install your gem
+RUBYFORGE_PROJECT = 'i_can_daemonize' # The unix name for your project
 HOMEPATH = "http://#{RUBYFORGE_PROJECT}.rubyforge.org"
 DOWNLOAD_PATH = "http://rubyforge.org/projects/#{RUBYFORGE_PROJECT}"
 EXTRA_DEPENDENCIES = [
@@ -34,8 +34,8 @@ end
 REV = nil
 # UNCOMMENT IF REQUIRED:
 # REV = YAML.load(`svn info`)['Revision']
-VERS = ICanDamonize::VERSION::STRING + (REV ? ".#{REV}" : "")
-RDOC_OPTS = ['--quiet', '--title', 'i_can_damonize documentation',
+VERS = ICanDaemonize::VERSION::STRING + (REV ? ".#{REV}" : "")
+RDOC_OPTS = ['--quiet', '--title', 'i_can_daemonize documentation',
     "--opname", "index.html",
     "--line-numbers",
     "--main", "README",

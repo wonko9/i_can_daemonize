@@ -1,6 +1,6 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
 
-class TestICanDamonize < Test::Unit::TestCase
+class TestICanDaemonize < Test::Unit::TestCase
 
   def setup
   end

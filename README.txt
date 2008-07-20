@@ -1,4 +1,4 @@
-= i_can_damonize
+= i_can_daemonize
 
 * FIX http://???
 

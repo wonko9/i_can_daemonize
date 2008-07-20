@@ -1,4 +1,4 @@
-module ICanDamonize
+module ICanDaemonize
   module VERSION #:nodoc:
     MAJOR = 0
     MINOR = 5
