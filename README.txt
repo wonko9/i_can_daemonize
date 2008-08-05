@@ -64,10 +64,19 @@ Your daemon can be called with a number of options
       --pid_file PIDFILE           Directory to put pidfile
   -h, --help                       Show this message
 
+You can add your own command line options by defining a class method named define_args which takes an OptionParser object.  See http://www.ruby-doc.org/stdlib/libdoc/optparse/rdoc/classes/OptionParser.html for more info on OptionParser.
+  
+  def self.define_args(arg)
+    args.on("--scott-rocks=TRUE", "Does scott rock?") do |t|
+      @options[:scott_rocks] = t
+    end                   
+  end
+  
 == BUGS:
 
+My method names may be too common to be included class methods
+
 ICanDaemonize attempts to capture all STDOUT or STDERR and prepend that output with a timestamp and PID.
-This appears to not be working right as most output lines also have the PID/timestamp at the end of the line as well.
 I don't like how this was implemented anyway. Feels dirty.
 
 == LICENSE:

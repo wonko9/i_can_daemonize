@@ -1,7 +1,5 @@
 
-For more information on i_can_daemonize, see http://i_can_daemonize.rubyforge.org
+For more information on i_can_daemonize, see http://github.com/geni/i_can_daemonize/tree/master
 
-NOTE: Change this information in PostInstall.txt 
-You can also delete it if you don't want it.
-
+You can also check out the the examples/ directory bundled with this gem.
 
