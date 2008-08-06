@@ -35,6 +35,7 @@
 .git/objects/1d/35d5bb4d1e2c0dcd005d15b94753a7964bb94d
 .git/objects/1e/46a85fd85177383925e57773c71758a42837fa
 .git/objects/1e/ca91a70a4b45938fd8234ae9d1547280be35e4
+.git/objects/22/b8f6d2b4be5e60b8f8766839a07c54dfba54f2
 .git/objects/23/e0a77ba2fecdcdadcf6c0922052c6354245124
 .git/objects/24/a09dbd7e55d2ad5a536775a529a7ba781dfa65
 .git/objects/28/ebb516ef651afc384aa55aadb94484ba2ae67d
@@ -55,6 +56,7 @@
 .git/objects/42/c7cc9b1a583deb859444415f08b4cc95d70d90
 .git/objects/44/c7b3d13ad38398c3e808db01f87daa1b437f1d
 .git/objects/45/3fe71ef804d5915e9a6a3f0b79441bad511cec
+.git/objects/45/f1881db98bbfa1d9e61dde84407215e283c791
 .git/objects/4a/43ea0cbfe5bf454dd94fd21cc3dae029e07d49
 .git/objects/4d/eb085828feab20e6cbbaa79bbe1f63ed4c09ee
 .git/objects/4f/a90547252639a50f4ac7ec8d46e0c984231806
@@ -62,6 +64,7 @@
 .git/objects/4f/ee8c6f9ef2b74b36c5ff1456fb23094fdaf776
 .git/objects/52/a48b8b3b8c9c1c0096cba2200ef432525f2964
 .git/objects/55/7fe581c30ae91e18955b63c31d93a73a28c032
+.git/objects/56/145fc9ef686bc0466c1a3476f4392867a736fa
 .git/objects/56/487faf89080cb2a8888ab01dd673ea074fb01d
 .git/objects/57/a70cd444f061b42ef5c2727389a2be82b92f6b
 .git/objects/5a/cc435beba5addafda568bebd29c125778acfe9
@@ -74,6 +77,7 @@
 .git/objects/6b/5d9a8ea07a214b0e1f107ede5af097a3ac006d
 .git/objects/6d/7492e8bbd2f5e4930bd1394269130b20f67cb2
 .git/objects/72/141584a5836168fe912ebce5b4537bd0eafc09
+.git/objects/81/526c0264455938ec9177a95c4bcfa1a30e2b3d
 .git/objects/8e/86ec62a32c765c84772dbd7f6b338f1bcfd250
 .git/objects/90/05c8667db117b29ad2dee80448b12980f548f5
 .git/objects/92/92b696aba9840c089241c68d4c6ca14be38a64
@@ -110,6 +114,7 @@
 .git/objects/d0/3739c7941048eb750e63ece62df14bfb4acf32
 .git/objects/da/66f699d82ba4e537a9a971020f5e8206abf7e6
 .git/objects/db/4506f2f27f0237ebf1d11d7e670fbcd5bb994f
+.git/objects/df/3ab4b7f3885929baddb77e7856a25d9d286437
 .git/objects/e2/5d425fcb25d634bea42b8393116b418d9283e5
 .git/objects/e2/ee73e164a3081eee47a7385f219636ed5175f5
 .git/objects/e4/69154c2ae4c3c596870a5e920f197b7b5be179
@@ -132,6 +137,7 @@
 .git/objects/f9/287a0b7b823c2cea3ba3edd1be857ecec5a913
 .git/objects/fa/93400644c2f225c7200b02bd9f5fa8f14d05b9
 .git/objects/fb/f181b820f989fd04b3ec4689a3bc9911360c04
+.git/objects/fc/69f2b7dd2b4d3ee75b6e561800365d7b605608
 .git/objects/ff/391e891cf6649d9154f79606aef8924ff03c73
 .git/refs/heads/master
 .git/refs/remotes/origin/master
@@ -143,6 +149,7 @@ README.txt
 Rakefile
 config/hoe.rb
 config/requirements.rb
+examples/feature_demo.rb
 examples/rails_daemon.rb
 examples/simple_daemon.rb
 examples/starling_queue_daemon.rb

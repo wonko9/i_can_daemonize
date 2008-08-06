@@ -6,7 +6,7 @@ rescue LoadError
   puts "\n****** ERROR LOADING RAILS ******\n\trails_daemon.rb should be put in your RAILS_ROOT/script directory so it can find your environment.rb\n\tOr you can change the environment require on line 4.\n*********************************\n\n"
 end
 
-class ICanDaemonize::SimpleDaemon
+class ICanDaemonize::RailsDaemon
   include ICanDaemonize
   
   before do

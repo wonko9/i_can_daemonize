@@ -271,10 +271,11 @@ module ICanDaemonize
 
     ################################################################################
     # stop the daemon, nicely at first, and then forcefully if necessary
-    def stop(number_of_pids_to_stop=0)
-      puts "stopping #{number_of_pids_to_stop} pids"
+    def stop(number_of_pids_to_stop=0)      
       @running = false      
-      pids = read_pid_file
+      pids = read_pid_file            
+      number_of_pids_to_stop = pids.size if number_of_pids_to_stop == 0
+      puts "stopping #{number_of_pids_to_stop} pids"
       if pids.empty?
         $stderr.puts "#{script_name} doesn't appear to be running"
         exit
