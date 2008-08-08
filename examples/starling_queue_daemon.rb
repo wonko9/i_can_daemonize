@@ -31,20 +31,6 @@ class ICanDaemonize::StarlingDaemon
     @starling = Starling.new("127.0.0.1:22122")
     @fetch_count = 0
   end
-
-  after do
-    puts "Dequeued #{@fetch_count} total items from #{@queue_name}"
-  end
-  
-  die_if do
-    puts "The die_if block is executed after every loop and dies if true is returned."
-    false
-  end
-
-  exit_if do
-    puts "The exit_if block is executed after every loop and exits gracefully if true is returned."
-    false
-  end
   
   daemonize(:log_prefix => false) do
     puts "Trying to fetch from the '#{@queue_name}' queue. Dequeued #{@fetch_count} so far"
