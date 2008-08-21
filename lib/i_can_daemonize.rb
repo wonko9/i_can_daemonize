@@ -82,12 +82,12 @@ module ICanDaemonize
 
       if ARGV.include?('stop')                                                         
         @instances ||= 0
-        stop(@instances)
+        stop_daemons(@instances)
+      elsif ARGV.include?('restart')
+        restart_daemons
       elsif ARGV.include?('start')
         @instances ||= 1
         @running = true
-      elsif ARGV.include?('restart')
-        restart
       else
         puts @opts.help
       end
@@ -154,7 +154,7 @@ module ICanDaemonize
         (@instances - read_pid_file.size).times do
           safefork do
             add_pid_to_pidfile
-            trap("TERM") { exit(0) }
+            trap("TERM") { stop }
             trap("HUP") { restart_self }
             sess_id = Process.setsid
             reopen_filehandes
@@ -181,45 +181,6 @@ module ICanDaemonize
 
     private
 
-    LOG_FORMAT = "%-6d %-19s %s"
-    def reopen_filehandes
-      STDIN.reopen("/dev/null")
-      STDOUT.reopen(log_file, "a")
-      STDOUT.sync = true          
-      STDERR.reopen(STDOUT)
-      if log_prefix?
-        def STDOUT.write(string)
-          if @no_prefix
-            @no_prefix = false if string[-1,1] == "\n"
-          else
-            string = LOG_FORMAT % [$$,Time.now.strftime("%Y/%m/%d %H:%M:%S"),string]
-            @no_prefix = true              
-          end
-          super(string)
-        end
-      end
-    end
-
-    def ok_to_start?
-      return false unless @running
-      pids = read_pid_file
-      living_pids = []
-      if pids and pids.any?
-        pids.each do |pid|
-          if process_alive?(pid)                                                 
-            living_pids << pid
-          else
-            $stderr.puts "Removing stale pid: #{pid}"
-          end
-        end
-        if @instances > 0 and living_pids.size >= @instances
-          $stderr.puts "#{script_name} is already running #{living_pids.size} out of #{@instances} instances"
-          return false          
-        end
-      end
-      return true
-    end
-
     def run_block(&block)
       loop do
         break unless @running
@@ -241,8 +202,8 @@ module ICanDaemonize
         sleep @options[:loop_every].to_i if @options[:loop_every]
         break if should_exit?
         raise DieTime.new("Die if conditions were met!") if should_die?
-      end
-      exit
+      end                    
+      exit(0)
     end
 
     def should_die?
@@ -269,9 +230,31 @@ module ICanDaemonize
       end
     end
 
+    def ok_to_start?
+      return false unless @running
+      pids = read_pid_file
+      living_pids = []
+      if pids and pids.any?
+        pids.each do |pid|
+          if process_alive?(pid)                                                 
+            living_pids << pid
+          else
+            $stderr.puts "Removing stale pid: #{pid}"
+            pids -= [pid]
+            rewrite_pidfile(pids)
+          end
+        end
+        if @instances > 0 and living_pids.size >= @instances
+          $stderr.puts "#{script_name} is already running #{living_pids.size} out of #{@instances} instances"
+          return false          
+        end
+      end
+      return true
+    end
+
     ################################################################################
     # stop the daemon, nicely at first, and then forcefully if necessary
-    def stop(number_of_pids_to_stop=0)      
+    def stop_daemons(number_of_pids_to_stop=0)      
       @running = false      
       pids = read_pid_file            
       number_of_pids_to_stop = pids.size if number_of_pids_to_stop == 0
@@ -281,39 +264,57 @@ module ICanDaemonize
         exit
       end
       pids.each_with_index do |pid,ii|
-        stop_pid(pid)
+        kill_pid(pid)
+        # puts "ii == (number_of_pids_to_stop - 1) #{ii} == #{(number_of_pids_to_stop - 1)}"
         break if ii == (number_of_pids_to_stop - 1)
       end
     end     
+
+    def restart_daemons
+      read_pid_file.each do |pid|
+        kill_pid(pid,"HUP")
+      end
+    end
     
-    def stop_pid(pid)
-      begin
-        $stdout.puts("stopping pid: #{pid} #{script_name}...")
-        Process.kill("TERM", pid)
-        30.times { Process.kill(0, pid); sleep(0.5) }
+    def stop
+      @running = false
+    end
+    
+    def kill_pid(pid,signal="TERM")
+      $stdout.puts("stopping pid: #{pid} sig: #{signal} #{script_name}...")
+      Process.kill(signal, pid)             
+      if pid_running?(pid,@options[:timeout] || 120)
         $stdout.puts("using kill -9 #{pid}")
         Process.kill(9, pid)
-        puts "ii == (number_of_pids_to_stop - 1) #{ii} == #{(number_of_pids_to_stop - 1)}"
-      rescue Errno::ESRCH => e
+      else
         $stdout.puts("process #{pid} has stopped")
       end
+    end               
+    
+    def pid_running?(pid,time_to_wait=0)
+      times_to_check = 1
+      if time_to_wait > 0.5
+        times_to_check = (time_to_wait / 0.5).to_i
+      end
+            
+      begin
+        times_to_check.times do
+          Process.kill(0, pid)
+          sleep 0.5
+        end
+        return true
+      rescue Errno::ESRCH
+        return false
+      end      
     end
           
     def restart_self
-      puts "restarting pid: #{$$}"
-      @running = false 
+      puts "restarting #{@@config.script_path}/#{script_name} pid: #{$$}"
       remove_self_from_pidfile
       system("#{@@config.script_path}/#{script_name} #{ARGV.join(' ')}")        
-      stop_pid($$)
+      stop
     end
-    
-    def restart
-      pids = read_pid_file
-      pids.each do |pid|
-        Process.kill("HUP",pid)
-      end
-    end
-    
+        
     ################################################################################
     def safefork (&block)
       @fork_tries ||= 0
@@ -331,6 +332,25 @@ module ICanDaemonize
     rescue Errno::ESRCH => e
       return false
     end  
+
+    LOG_FORMAT = "%-6d %-19s %s"
+    def reopen_filehandes
+      STDIN.reopen("/dev/null")
+      STDOUT.reopen(log_file, "a")
+      STDOUT.sync = true          
+      STDERR.reopen(STDOUT)
+      if log_prefix?
+        def STDOUT.write(string)
+          if @no_prefix
+            @no_prefix = false if string[-1,1] == "\n"
+          else
+            string = LOG_FORMAT % [$$,Time.now.strftime("%Y/%m/%d %H:%M:%S"),string]
+            @no_prefix = true              
+          end
+          super(string)
+        end
+      end
+    end
 
     #################################################################################
     # create the PID file and install an at_exit handler
