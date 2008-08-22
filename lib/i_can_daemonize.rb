@@ -33,6 +33,7 @@ module ICanDaemonize
     def initialize_options    
       @@config = Config.new
       @@config.script_path = File.expand_path(File.dirname($0))
+      $0 = script_name
       @options   = {:log_prefix => true}
       @callbacks = {}
       @argv = ARGV        
@@ -155,6 +156,7 @@ module ICanDaemonize
           safefork do
             add_pid_to_pidfile
             trap("TERM") { stop }
+            trap("INT") { Process.kill("TERM", $$) }
             trap("HUP") { restart_self }
             sess_id = Process.setsid
             reopen_filehandes
@@ -312,7 +314,7 @@ module ICanDaemonize
       puts "restarting #{@@config.script_path}/#{script_name} pid: #{$$}"
       remove_self_from_pidfile
       system("#{@@config.script_path}/#{script_name} #{ARGV.join(' ')}")        
-      stop
+      Process.kill("TERM", $$)
     end
         
     ################################################################################
@@ -415,7 +417,7 @@ module ICanDaemonize
     end
 
     def script_name
-      @script_name ||= File.basename($0)      
+      @script_name ||= File.basename($0)
     end
 
     def script_name=(script_name)
