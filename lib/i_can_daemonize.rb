@@ -80,7 +80,7 @@ module ICanDaemonize
       define_args(@opts) if respond_to?(:define_args)
       @opts.parse!
       @options[:ontop]   ||= !ARGV.include?('start')
-
+      
       if ARGV.include?('stop')                                                         
         @instances ||= 0
         stop_daemons(@instances)
@@ -89,6 +89,7 @@ module ICanDaemonize
       elsif ARGV.include?('start')
         @instances ||= 1
         @running = true
+        @restarted = true if ARGV.include?("HUP")
       else
         puts @opts.help
       end
@@ -150,9 +151,9 @@ module ICanDaemonize
       parse_options
       return unless ok_to_start?
       @options.merge!(options)
-      puts "Starting #{script_name} instances: #{(@instances - read_pid_file.size)}  Logging to: #{log_file}"
+      puts "Starting #{script_name} instances: #{instances_to_start}  Logging to: #{log_file}"
       if not @options[:ontop]
-        (@instances - read_pid_file.size).times do
+        instances_to_start.times do
           safefork do
             add_pid_to_pidfile
             trap("TERM") { stop }
@@ -182,7 +183,7 @@ module ICanDaemonize
     end
 
     private
-
+    
     def run_block(&block)
       loop do
         break unless @running
@@ -232,8 +233,14 @@ module ICanDaemonize
       end
     end
 
+    def instances_to_start
+      return 1 if @restarted
+      @instances - read_pid_file.size      
+    end
+
     def ok_to_start?
       return false unless @running
+      return true if @restarted
       pids = read_pid_file
       living_pids = []
       if pids and pids.any?
@@ -284,12 +291,16 @@ module ICanDaemonize
     
     def kill_pid(pid,signal="TERM")
       $stdout.puts("stopping pid: #{pid} sig: #{signal} #{script_name}...")
-      Process.kill(signal, pid)             
-      if pid_running?(pid,@options[:timeout] || 120)
-        $stdout.puts("using kill -9 #{pid}")
-        Process.kill(9, pid)
-      else
-        $stdout.puts("process #{pid} has stopped")
+      begin
+        Process.kill(signal, pid)             
+        if pid_running?(pid,@options[:timeout] || 120)
+          $stdout.puts("using kill -9 #{pid}")
+          Process.kill(9, pid)
+        else
+          $stdout.puts("process #{pid} has stopped")
+        end
+      rescue Errno::ESRCH
+       $stdout.puts("couldn't #{signal} #{pid} as it wasn't running")
       end
     end               
     
@@ -311,9 +322,12 @@ module ICanDaemonize
     end
           
     def restart_self
-      puts "restarting #{@@config.script_path}/#{script_name} pid: #{$$}"
       remove_self_from_pidfile
-      system("#{@@config.script_path}/#{script_name} #{ARGV.join(' ')}")        
+      cmd = "#{@@config.script_path}/#{script_name} "
+      cmd << "HUP " unless ARGV.include?("HUP")
+      cmd << ARGV.join(' ')
+      puts "restarting #{cmd} pid: #{$$}"
+      system(cmd)        
       Process.kill("TERM", $$)
     end
         
