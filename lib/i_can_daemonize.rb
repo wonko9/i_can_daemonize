@@ -30,9 +30,10 @@ module ICanDaemonize
       @@config             = Config.new
       @@config.script_path = File.expand_path(File.dirname($0))
 
-      $0         = script_name
-      @options   = {:log_prefix => true}
-      @callbacks = {}
+      $0          = script_name
+      @options    = {:log_prefix => true}
+      @extra_args = {}
+      @callbacks  = {}
     end
     
     def parse_options
@@ -199,7 +200,7 @@ module ICanDaemonize
         if @options[:timeout]
           begin
             Timeout::timeout(@options[:timeout].to_i) do
-              block.call
+              block.call if block              
             end
           rescue Timeout::Error => e
             if @options[:die_on_timeout]
@@ -209,9 +210,14 @@ module ICanDaemonize
             end
           end            
         else
-          block.call            
+          block.call if block
+          
         end
-        sleep @options[:loop_every].to_i if @options[:loop_every]
+        if @options[:loop_every]
+          sleep @options[:loop_every].to_i
+        elsif not block
+          sleep 0.1
+        end
         break if should_exit?
         raise DieTime.new("Die if conditions were met!") if should_die?
       end                    
