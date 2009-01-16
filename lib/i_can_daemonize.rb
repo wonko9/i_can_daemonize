@@ -32,7 +32,6 @@ module ICanDaemonize
 
       $0          = script_name
       @options    = {:log_prefix => true}
-      @extra_args = {}
       @callbacks  = {}
     end
     
@@ -72,7 +71,7 @@ module ICanDaemonize
         end
       end
       
-      @extra_args.each do |arg|
+      extra_args.each do |arg|
         @opts.on(*arg.first) do |value|
           arg.last.call(value) if arg.last
         end
