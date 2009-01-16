@@ -1,6 +1,3 @@
-$:.unshift(File.dirname(__FILE__)) unless
-$:.include?(File.dirname(__FILE__)) || $:.include?(File.expand_path(File.dirname(__FILE__)))
-
 require 'optparse'
 require 'timeout'    
 
@@ -18,7 +15,6 @@ module ICanDaemonize
     CONFIG = {}    
     def method_missing(name, *args)
       name = name.to_s.upcase.to_sym
-      # raise Error.new("#{name} is not a valid config variable") unless METHODS.include?(name.to_sym)
       if name.to_s =~ /^(.*)=$/
         name = $1.to_sym
         CONFIG[name] = args.first
@@ -31,55 +27,58 @@ module ICanDaemonize
   module ClassMethods  
     
     def initialize_options    
-      @@config = Config.new
+      @@config             = Config.new
       @@config.script_path = File.expand_path(File.dirname($0))
-      $0 = script_name
+
+      $0         = script_name
       @options   = {:log_prefix => true}
       @callbacks = {}
-      @argv = ARGV        
     end
     
     def parse_options
       @opts = OptionParser.new do |opt|
-        #opts.banner = "Usage: example.rb [options]"
         opt.banner = "Usage: #{script_name} [options] [start|stop]"
 
-        opt.on_tail("-h", "--help", "Show this message") do
+        opt.on_tail('-h', '--help', 'Show this message') do
           puts opt
           exit
         end
-        opt.on("--loop-every=LOOPEVERY", "How long to sleep between each loop") do |t|
-          @options[:loop_every] = t
-        end
-        opt.on("-t", "--ontop", "Stay on top (does not daemonize)") do |t|
-          @options[:ontop] = t
+
+        opt.on('--loop-every=SECONDS', 'How long to sleep between each loop') do |value|
+          @options[:loop_every] = value 
         end
 
-        opt.on('--instances=NUM', 'Allow multiple instances to run simultaneously? 0 for infinite. default: 1') do |v|
-          @instances = v.to_i
+        opt.on('-t', '--ontop', 'Stay on top (does not daemonize)') do |value|
+          @options[:ontop] = value
         end
-        opt.on('--logdir=LOGDIR', 'Logfile to log to') do |v|
-          @options[:log_dir] = File.expand_path(v)
+
+        opt.on('--instances=NUM', 'Allow multiple instances to run simultaneously? 0 for infinite. default: 1') do |value|
+          @instances = value.to_i
         end
-        opt.on('--logfile=LOGFILE', 'Logfile to log to') do |v|
-          @options[:log_file] = File.expand_path(v)
+
+        opt.on('--log-file=LOGFILE', 'Logfile to log to') do |value|
+          @options[:log_file] = File.expand_path(value)
         end
-        opt.on('--loglevel=LOGLEVEL', 'Log level defaults to DEBUG') do |v|
-          @options[:log_level] = v
+
+        opt.on('--pid-file=PIDFILE', 'Location of pidfile') do |value|
+          @options[:pid_file] = File.expand_path(value)
         end
-        opt.on('--logprefix=TRUE_OR_FALSE', 'All output to logfiles will be prefixed with PID and date/time.') do |v|
-          if v.downcase == "false" or v == "0"
+
+        opt.on('--log-prefix=BOOLEAN', 'All output to logfiles will be prefixed with PID and date/time.') do |value|
+          if value.downcase == 'false' or value == '0'
             @options[:log_prefix] = false
           end
         end
-        opt.on('--pid_file=PIDFILE', 'Directory to put pidfile') do |v|
-          @options[:pid_dir] = File.expand_path(v)
-        end
       end
       
-      define_args(@opts) if respond_to?(:define_args)
+      @extra_args.each do |arg|
+        @opts.on(*arg.first) do |value|
+          arg.last.call(value) if arg.last
+        end
+      end
+
       @opts.parse!
-      @options[:ontop]   ||= !ARGV.include?('start')
+      @options[:ontop] ||= !ARGV.include?('start')
       
       if ARGV.include?('stop')                                                         
         @instances ||= 0
@@ -88,13 +87,21 @@ module ICanDaemonize
         restart_daemons
       elsif ARGV.include?('start')
         @instances ||= 1
-        @running = true
-        @restarted = true if ARGV.include?("HUP")
+        @running     = true
+        @restarted   = true if ARGV.include?("HUP")
       else
         puts @opts.help
       end
     end    
-    
+
+    def arg(*args, &block)
+      self.extra_args << [args, block]
+    end
+
+    def extra_args
+      @extra_args ||= [] 
+    end
+
     def config
       yield @@config
     end
@@ -150,15 +157,17 @@ module ICanDaemonize
     def daemonize(options={},&block)
       parse_options
       return unless ok_to_start?
+
       @options.merge!(options)
       puts "Starting #{script_name} instances: #{instances_to_start}  Logging to: #{log_file}"
+      
       if not @options[:ontop]
         instances_to_start.times do
           safefork do
             add_pid_to_pidfile
-            trap("TERM") { stop }
-            trap("INT") { Process.kill("TERM", $$) }
-            trap("HUP") { restart_self }
+            trap('TERM') { stop }
+            trap('INT') { Process.kill('TERM', $$) }
+            trap('HUP') { restart_self }
             sess_id = Process.setsid
             reopen_filehandes
             @before ||= {} 
@@ -261,7 +270,6 @@ module ICanDaemonize
       return true
     end
 
-    ################################################################################
     # stop the daemon, nicely at first, and then forcefully if necessary
     def stop_daemons(number_of_pids_to_stop=0)      
       @running = false      
@@ -274,14 +282,13 @@ module ICanDaemonize
       end
       pids.each_with_index do |pid,ii|
         kill_pid(pid)
-        # puts "ii == (number_of_pids_to_stop - 1) #{ii} == #{(number_of_pids_to_stop - 1)}"
         break if ii == (number_of_pids_to_stop - 1)
       end
     end     
 
     def restart_daemons
       read_pid_file.each do |pid|
-        kill_pid(pid,"HUP")
+        kill_pid(pid, 'HUP')
       end
     end
     
@@ -293,7 +300,7 @@ module ICanDaemonize
       $stdout.puts("stopping pid: #{pid} sig: #{signal} #{script_name}...")
       begin
         Process.kill(signal, pid)             
-        if pid_running?(pid,@options[:timeout] || 120)
+        if pid_running?(pid, @options[:timeout] || 120)
           $stdout.puts("using kill -9 #{pid}")
           Process.kill(9, pid)
         else
@@ -324,15 +331,14 @@ module ICanDaemonize
     def restart_self
       remove_self_from_pidfile
       cmd = "#{@@config.script_path}/#{script_name} "
-      cmd << "HUP " unless ARGV.include?("HUP")
+      cmd << 'HUP ' unless ARGV.include?('HUP')
       cmd << ARGV.join(' ')
       puts "restarting #{cmd} pid: #{$$}"
       system(cmd)        
-      Process.kill("TERM", $$)
+      Process.kill('TERM', $$)
     end
         
-    ################################################################################
-    def safefork (&block)
+    def safefork(&block)
       @fork_tries ||= 0
       fork(&block)
     rescue Errno::EWOULDBLOCK
@@ -343,16 +349,17 @@ module ICanDaemonize
     end
 
     def process_alive?(process_pid)
-      Process.kill(0,process_pid)
+      Process.kill(0, process_pid)
       return true
     rescue Errno::ESRCH => e
       return false
     end  
 
-    LOG_FORMAT = "%-6d %-19s %s"
+    LOG_FORMAT  = '%-6d %-19s %s'
+    TIME_FORMAT = '%Y/%m/%d %H:%M:%S'
     def reopen_filehandes
-      STDIN.reopen("/dev/null")
-      STDOUT.reopen(log_file, "a")
+      STDIN.reopen('/dev/null')
+      STDOUT.reopen(log_file, 'a')
       STDOUT.sync = true          
       STDERR.reopen(STDOUT)
       if log_prefix?
@@ -360,7 +367,7 @@ module ICanDaemonize
           if @no_prefix
             @no_prefix = false if string[-1,1] == "\n"
           else
-            string = LOG_FORMAT % [$$,Time.now.strftime("%Y/%m/%d %H:%M:%S"),string]
+            string = LOG_FORMAT % [$$,Time.now.strftime(TIME_FORMAT),string]
             @no_prefix = true              
           end
           super(string)
@@ -368,17 +375,15 @@ module ICanDaemonize
       end
     end
 
-    #################################################################################
     # create the PID file and install an at_exit handler
     def add_pid_to_pidfile
-      open(pid_file, "a+") {|f| f << Process.pid << "\n"}
+      open(pid_file, 'a+') {|f| f << Process.pid << "\n"}
       at_exit { remove_self_from_pidfile }
-      # puts "adding #{Process.pid} to pidfile"
     end
 
     def rewrite_pidfile(pids)
       if pids.any?
-        open(pid_file,"w") {|f| f << pids.join("\n") << "\n"}
+        open(pid_file, 'w') {|f| f << pids.join("\n") << "\n"}
       else
         remove_pidfile
       end
@@ -394,7 +399,6 @@ module ICanDaemonize
       File.unlink(pid_file) if File.exists?(pid_file)
     end
 
-    #################################################################################
     def read_pid_file
       if File.exist?(pid_file)
         File.readlines(pid_file).collect {|p| p.to_i}
@@ -407,19 +411,18 @@ module ICanDaemonize
       @options[:log_prefix]      
     end                    
     
-    LOG_PATHS = ["log/", "logs/", "../log/", "../logs/", "../../log", "../../logs", "."]
+    LOG_PATHS = ['log/', 'logs/', '../log/', '../logs/', '../../log', '../../logs', '.']
     LOG_PATHS.unshift("#{RAILS_ROOT}/log") if defined?(RAILS_ROOT)
     def log_dir
       @options[:log_dir] ||= begin
         LOG_PATHS.detect do |path|
-          # puts "trying path #{File.expand_path(path)}"
           File.exists?(File.expand_path(path))        
         end
       end               
     end
     
     def log_file
-      @log_file ||= File.expand_path("#{log_dir}/#{script_name}.log")
+      @options[:log_file] ||= File.expand_path("#{log_dir}/#{script_name}.log")
     end
 
     def pid_dir
@@ -427,7 +430,7 @@ module ICanDaemonize
     end
 
     def pid_file
-      File.expand_path("#{pid_dir}/#{script_name}.pid")
+      @options[:pid_file] ||= File.expand_path("#{pid_dir}/#{script_name}.pid")
     end
 
     def script_name
@@ -437,14 +440,5 @@ module ICanDaemonize
     def script_name=(script_name)
       @script_name = script_name
     end
-
-    def underscore(camel_cased_word)
-      camel_cased_word.to_s.gsub(/::/, '/').
-        gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
-        gsub(/([a-z\d])([A-Z])/,'\1_\2').
-        tr("-", "_").
-        downcase
-    end           
   end
-  
 end

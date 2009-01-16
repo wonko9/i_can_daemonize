@@ -1,11 +1,39 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
 
 class TestICanDaemonize < Test::Unit::TestCase
+  DEFAULT_LOG_FILE = File.join(File.dirname(__FILE__), 'test_daemon.rb.log')
 
   def setup
+    File.delete(TEST_FILE) if File.exist?(TEST_FILE)
+    @daemon = "#{File.dirname(__FILE__)}/test_daemon.rb"
+  end
+
+  def teardown
+    File.delete(TEST_FILE) if File.exist?(TEST_FILE)
+    File.delete(DEFAULT_LOG_FILE) if File.exist?(DEFAULT_LOG_FILE)
+  end
+
+  test "passing options" do
+    log_file = File.expand_path(File.join(File.dirname(__FILE__), 'test.log'))
+    pid_file = File.expand_path(File.join(File.dirname(__FILE__), 'test.pid'))
+    `ruby #{@daemon} --log-file #{log_file} --pid-file #{pid_file} start`
+    `ruby #{@daemon} --log-file #{log_file} --pid-file #{pid_file} stop`
+    File.delete(log_file)
+    assert_equal "#{log_file}|#{pid_file}", File.read(TEST_FILE)
   end
   
-  def test_truth
-    assert true
+  test "loop every" do
+    `ruby #{@daemon} --loop-every 1 start`
+    sleep 5
+    `ruby #{@daemon} stop`
+    counter = File.read(TEST_FILE).to_i
+    assert counter > 5
   end
+  
+  test "arg class macro" do
+    `ruby #{@daemon} --test test -s short-test start`
+    `ruby #{@daemon} stop`
+    assert_equal "test|short-test", File.read(TEST_FILE)
+  end
+
 end

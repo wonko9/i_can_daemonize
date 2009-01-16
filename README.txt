@@ -1,7 +1,5 @@
 = i_can_daemonize
 
-* FIX http://???
-
 == DESCRIPTION:
 
 ICanDaemonize makes it dead simple to create daemons of your own.
@@ -54,22 +52,18 @@ See ICanDaemonize docs for more info on these options.
 
 Your daemon can be called with a number of options
 
-      --loop-every LOOPEVERY       How long to sleep between each loop
+      --loop-every SECONDS         How long to sleep between each loop
   -t, --ontop                      Stay on top (does not daemonize)
       --instances=NUM              Allow multiple instances to run simultaneously? 0 for infinite. default: 1
-      --logdir=LOGDIR              Logfile to log to
-      --logfile LOGFILE            Logfile to log to
-      --loglevel LOGLEVEL          Log level defaults to DEBUG
-      --logprefix=TRUE_OR_FALSE    All output to logfiles will be prefixed with PID and date/time.
-      --pid_file PIDFILE           Directory to put pidfile
+      --log-file=LOGFILE           Logfile to log to
+      --pid-file=PIDFILE           Directory to put pidfile
   -h, --help                       Show this message
 
-You can add your own command line options by defining a class method named define_args which takes an OptionParser object.  See http://www.ruby-doc.org/stdlib/libdoc/optparse/rdoc/classes/OptionParser.html for more info on OptionParser.
+You can add your own command line options by using the 'arg' class macro.  
+See http://www.ruby-doc.org/stdlib/libdoc/optparse/rdoc/classes/OptionParser.html for more info on OptionParser.
   
-  def self.define_args(arg)
-    args.on("--scott-rocks=TRUE", "Does scott rock?") do |t|
-      @options[:scott_rocks] = t
-    end                   
+  arg '--scott-rocks', 'Does scott rock?') do |value|
+    @scott_rocks = value
   end
   
 == BUGS:
@@ -83,7 +77,7 @@ I don't like how this was implemented anyway. Feels dirty.
 
 (The MIT License)
 
-Copyright (c) 2008 FIXME full name
+Copyright (c) 2009 Adam Pisoni, Amos Elliston
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

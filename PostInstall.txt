@@ -1,5 +1,0 @@
-
-For more information on i_can_daemonize, see http://github.com/geni/i_can_daemonize/tree/master
-
-You can also check out the the examples/ directory bundled with this gem.
-
