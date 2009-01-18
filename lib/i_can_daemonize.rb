@@ -167,11 +167,11 @@ module ICanDaemonize
     #
     # <tt>:log_prefix</tt> BOOL (DEFAULT false)
     #  Prefix log file entries with PID and timestamp
-    def daemonize(options={},&block)
+    def daemonize(opts={}, &block)
       parse_options
       return unless ok_to_start?
 
-      options.merge!(options)
+      options.merge!(opts)
       puts "Starting #{script_name} instances: #{instances_to_start}  Logging to: #{log_file}"
       
       if not options[:ontop]
