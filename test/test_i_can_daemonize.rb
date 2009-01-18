@@ -5,7 +5,7 @@ class TestICanDaemonize < Test::Unit::TestCase
 
   def setup
     File.delete(TEST_FILE) if File.exist?(TEST_FILE)
-    @daemon = "#{File.dirname(__FILE__)}/test_daemon.rb"
+    @daemon = "#{File.dirname(__FILE__)}/simple_daemon.rb"
   end
 
   def teardown

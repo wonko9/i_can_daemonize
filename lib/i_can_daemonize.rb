@@ -114,12 +114,20 @@ module ICanDaemonize
       @callbacks[:after] = block
     end
 
+    def sig(signal, &block)
+      @callbacks["sig_#{signal}".to_sym] = block
+    end
+
     def die_if(method=nil,&block)
       @options[:die_if] = method || block
     end
 
     def exit_if(method=nil,&block)
       @options[:exit_if] = method || block
+    end
+
+    def callback!(callback)
+      @callbacks[callback].call if @callbacks[callback]
     end
 
     # options may include:
@@ -165,12 +173,15 @@ module ICanDaemonize
         instances_to_start.times do
           safefork do
             add_pid_to_pidfile
-            trap('TERM') { stop }
-            trap('INT') { Process.kill('TERM', $$) }
-            trap('HUP') { restart_self }
+
+            trap('TERM') { callback!(:sig_term) ; stop;                     }
+            trap('INT')  { callback!(:sig_int)  ; Process.kill('TERM', $$)  }
+            trap('HUP')  { callback!(:sig_hup)  ; restart_self              }
+
             sess_id = Process.setsid
             reopen_filehandes
             @before ||= {} 
+
             begin
               at_exit { @callbacks[:after].call if @callbacks[:after] }
               @callbacks[:before].call if @callbacks[:before]

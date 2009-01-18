@@ -1,6 +1,7 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
+require File.dirname(__FILE__) + '/../lib/i_can_daemonize'
 
-class TestDaemon
+class SimpleDaemon
   include ICanDaemonize
 
   arg '--test=VALUE', 'Test Arg' do |value|
@@ -22,5 +23,4 @@ class TestDaemon
       File.open(TEST_FILE, 'w'){|f| f << "#{log_file}|#{pid_file}"}
     end
   end
-
 end
