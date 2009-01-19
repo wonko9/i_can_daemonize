@@ -1,13 +1,13 @@
 Gem::Specification.new do |s|
   s.name = %q{i_can_daemonize}
-  s.version = "0.0.0"
+  s.version = "0.6.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Adam Pisoni", "Amos Elliston"]
   s.date = %q{2009-01-19}
   s.description = %q{ICanDaemonize makes it dead simple to create daemons of your own}
   s.email = %q{wonko9@gmail.com}
-  s.files = ["History.txt", "Manifest.txt", "Rakefile", "README.txt", "lib/i_can_daemonize", "lib/i_can_daemonize/version.rb", "lib/i_can_daemonize.rb", "test/simple_daemon.rb", "test/test_helper.rb", "test/test_i_can_daemonize.rb"]
+  s.files = ["History.txt", "Manifest.txt", "Rakefile", "README.txt", "VERSION.yml", "lib/i_can_daemonize.rb", "test/simple_daemon.rb", "test/test_helper.rb", "test/test_i_can_daemonize.rb"]
   s.has_rdoc = true
   s.homepage = %q{http://github.com/wonko9/i_can_daemonize}
   s.rdoc_options = ["--inline-source", "--charset=UTF-8"]
