@@ -45,12 +45,12 @@ module ICanDaemonize
           options[:loop_every] = value 
         end
 
-        opt.on('-t', '--ontop', 'Stay on top (does not daemonize)') do |value|
-          options[:ontop] = value
+        opt.on('-t', '--ontop', 'Stay on top (does not daemonize)') do
+          options[:ontop] = true
         end
 
         opt.on('--instances=NUM', 'Allow multiple instances to run simultaneously? 0 for infinite. default: 1') do |value|
-          @instances = value.to_i
+          self.instances = value.to_i
         end
 
         opt.on('--log-file=LOGFILE', 'Logfile to log to') do |value|
@@ -61,10 +61,8 @@ module ICanDaemonize
           options[:pid_file] = File.expand_path(value)
         end
 
-        opt.on('--log-prefix=BOOLEAN', 'All output to logfiles will be prefixed with PID and date/time.') do |value|
-          if value.downcase == 'false' or value == '0'
-            options[:log_prefix] = false
-          end
+        opt.on('--no-log-prefix', 'Do not prefix PID and date/time in log file.') do
+          options[:log_prefix] = false
         end
       end
       
@@ -75,17 +73,14 @@ module ICanDaemonize
       end
 
       opts.parse!
-      options[:ontop] ||= !ARGV.include?('start')
       
       if ARGV.include?('stop')                                                         
-        @instances ||= 0
-        stop_daemons(@instances)
+        stop_daemons
       elsif ARGV.include?('restart')
         restart_daemons
-      elsif ARGV.include?('start')
-        @instances ||= 1
-        @running     = true
-        @restarted   = true if ARGV.include?("HUP")
+      elsif ARGV.include?('start') or ontop?
+        self.running   = true
+        self.restarted = true if ARGV.include?('HUP')
       else
         puts opts.help
       end
@@ -104,7 +99,7 @@ module ICanDaemonize
     end
 
     def options
-      @options ||= {:log_prefix => true}
+      @options ||= {}
     end
 
     def config
@@ -165,23 +160,26 @@ module ICanDaemonize
     #  Run this check after each iteration of the loop.   If the block returns true, exit gracefully
     #  You can also define the after block by putting an exit_if do/end block in your class.
     #
-    # <tt>:log_prefix</tt> BOOL (DEFAULT false)
+    # <tt>:log_prefix</tt> BOOL (DEFAULT true)
     #  Prefix log file entries with PID and timestamp
     def daemonize(opts={}, &block)
       parse_options
       return unless ok_to_start?
 
       options.merge!(opts)
-      puts "Starting #{script_name} instances: #{instances_to_start}  Logging to: #{log_file}"
+      puts "Starting #{instances_to_start} #{script_name} #{pluarlize('instance', instances_to_start)}..."
+      puts "Logging to: #{log_file}" unless ontop?
       
-      if not options[:ontop]
+      unless ontop?
         instances_to_start.times do
           safefork do
-            add_pid_to_pidfile
+            open(pid_file, 'a+') {|f| f << Process.pid << "\n"}
+            at_exit { remove_pid! }
 
-            trap('TERM') { callback!(:sig_term) ; stop;                     }
-            trap('INT')  { callback!(:sig_int)  ; Process.kill('TERM', $$)  }
-            trap('HUP')  { callback!(:sig_hup)  ; restart_self              }
+      
+            trap('TERM') { callback!(:sig_term) ; self.running = false     }
+            trap('INT')  { callback!(:sig_int)  ; Process.kill('TERM', $$) }
+            trap('HUP')  { callback!(:sig_hup)  ; restart_self             }
 
             sess_id = Process.setsid
             reopen_filehandes
@@ -210,7 +208,7 @@ module ICanDaemonize
     
     def run_block(&block)
       loop do
-        break unless @running
+        break unless running?
         if options[:timeout]
           begin
             Timeout::timeout(options[:timeout].to_i) do
@@ -218,9 +216,9 @@ module ICanDaemonize
             end
           rescue Timeout::Error => e
             if options[:die_on_timeout]
-              raise TimeoutError.new("#{self} Timed out after #{options[:timeout]} seconds while executing block in loop")
+              raise TimeoutError.new("#{self} timed out after #{options[:timeout]} seconds while executing block in loop")
             else
-              $stderr.puts "#{self} Timed out after #{options[:timeout]} seconds while executing block in loop #{e.backtrace.join("\n")}"
+              $stderr.puts "#{self} timed out after #{options[:timeout]} seconds while executing block in loop #{e.backtrace.join("\n")}"
             end
           end            
         else
@@ -233,17 +231,18 @@ module ICanDaemonize
           sleep 0.1
         end
         break if should_exit?
-        raise DieTime.new("Die if conditions were met!") if should_die?
+        raise DieTime.new('Die if conditions were met!') if should_die?
       end                    
       exit(0)
     end
 
     def should_die?
-      if options[:die_if]
-        if options[:die_if].is_a?(Symbol) or options[:die_if].is_a?(String)
-          self.send(options[:die_if])
-        elsif options[:die_if].is_a?(Proc)
-          options[:die_if].call
+      die_if = options[:die_if]
+      if die_if
+        if die_if.is_a?(Symbol) or die_if.is_a?(String)
+          self.send(die_if)
+        elsif die_if.is_a?(Proc)
+          die_if.call
         end
       else
         false
@@ -251,11 +250,12 @@ module ICanDaemonize
     end
 
     def should_exit?
-      if options[:exit_if]
-        if options[:exit_if].is_a?(Symbol) or options[:exit_if].is_a?(String)
-          self.send(options[:exit_if].to_sym)
-        elsif options[:exit_if].is_a?(Proc)
-          options[:exit_if].call
+      exit_if = options[:exit_if]
+      if exit_if
+        if exit_if.is_a?(Symbol) or exit_if.is_a?(String)
+          self.send(exit_if.to_sym)
+        elsif exit_if.is_a?(Proc)
+          exit_if.call
         end
       else
         false
@@ -263,27 +263,27 @@ module ICanDaemonize
     end
 
     def instances_to_start
-      return 1 if @restarted
-      @instances - read_pid_file.size      
+      return 1 if restarted?
+      instances - pids.size      
     end
 
     def ok_to_start?
-      return false unless @running
-      return true if @restarted
-      pids = read_pid_file
+      return false unless running?
+      return true if restarted?
+
       living_pids = []
       if pids and pids.any?
         pids.each do |pid|
           if process_alive?(pid)                                                 
             living_pids << pid
           else
-            $stderr.puts "Removing stale pid: #{pid}"
+            $stderr.puts "Removing stale pid: #{pid}..."
             pids -= [pid]
-            rewrite_pidfile(pids)
+            self.pids = pids
           end
         end
-        if @instances > 0 and living_pids.size >= @instances
-          $stderr.puts "#{script_name} is already running #{living_pids.size} out of #{@instances} instances"
+        if instances > 0 and living_pids.size >= instances
+          $stderr.puts "#{script_name} is already running #{living_pids.size} out of #{pluralize('instance', instances)}"
           return false          
         end
       end
@@ -291,43 +291,37 @@ module ICanDaemonize
     end
 
     # stop the daemon, nicely at first, and then forcefully if necessary
-    def stop_daemons(number_of_pids_to_stop=0)      
-      @running = false      
-      pids = read_pid_file            
-      number_of_pids_to_stop = pids.size if number_of_pids_to_stop == 0
-      puts "stopping #{number_of_pids_to_stop} pids"
+    def stop_daemons
+      self.running = false      
+      puts "Stopping #{instances} #{script_name} #{pluarlize('instance', instances)}..."
       if pids.empty?
         $stderr.puts "#{script_name} doesn't appear to be running"
         exit
       end
-      pids.each_with_index do |pid,ii|
+      pids.each_with_index do |pid, ii|
         kill_pid(pid)
-        break if ii == (number_of_pids_to_stop - 1)
+        break if ii == (instances - 1)
       end
     end     
 
     def restart_daemons
-      read_pid_file.each do |pid|
+      pids.each do |pid|
         kill_pid(pid, 'HUP')
       end
     end
     
-    def stop
-      @running = false
-    end
-    
-    def kill_pid(pid,signal="TERM")
-      $stdout.puts("stopping pid: #{pid} sig: #{signal} #{script_name}...")
+    def kill_pid(pid, signal='TERM')
+      $stdout.puts("Stopping pid #{pid} with #{signal}...")
       begin
         Process.kill(signal, pid)             
         if pid_running?(pid, options[:timeout] || 120)
-          $stdout.puts("using kill -9 #{pid}")
+          $stdout.puts("Using kill -9 #{pid}")
           Process.kill(9, pid)
         else
-          $stdout.puts("process #{pid} has stopped")
+          $stdout.puts("Process #{pid} stopped")
         end
       rescue Errno::ESRCH
-       $stdout.puts("couldn't #{signal} #{pid} as it wasn't running")
+       $stdout.puts("Couldn't #{signal} #{pid} as it wasn't running")
       end
     end               
     
@@ -349,21 +343,21 @@ module ICanDaemonize
     end
           
     def restart_self
-      remove_self_from_pidfile
+      remove_pid!
       cmd = "#{@@config.script_path}/#{script_name} "
       cmd << 'HUP ' unless ARGV.include?('HUP')
       cmd << ARGV.join(' ')
-      puts "restarting #{cmd} pid: #{$$}"
+      puts "Restarting #{cmd} pid: #{$$}..."
       system(cmd)        
       Process.kill('TERM', $$)
     end
         
     def safefork(&block)
-      @fork_tries ||= 0
+      fork_tries ||= 0
       fork(&block)
     rescue Errno::EWOULDBLOCK
-      raise if @fork_tries >= 20
-      @fork_tries += 1
+      raise if fork_tries >= 20
+      fork_tries += 1
       sleep 5
       retry
     end
@@ -385,9 +379,9 @@ module ICanDaemonize
       if log_prefix?
         def STDOUT.write(string)
           if @no_prefix
-            @no_prefix = false if string[-1,1] == "\n"
+            @no_prefix = false if string[-1, 1] == "\n"
           else
-            string = LOG_FORMAT % [$$,Time.now.strftime(TIME_FORMAT),string]
+            string = LOG_FORMAT % [$$, Time.now.strftime(TIME_FORMAT), string]
             @no_prefix = true              
           end
           super(string)
@@ -395,40 +389,64 @@ module ICanDaemonize
       end
     end
 
-    # create the PID file and install an at_exit handler
-    def add_pid_to_pidfile
-      open(pid_file, 'a+') {|f| f << Process.pid << "\n"}
-      at_exit { remove_self_from_pidfile }
+    def remove_pid!(pid=Process.pid)
+      pids.delete(pid)
+      self.pids = pids
     end
 
-    def rewrite_pidfile(pids)
+    def pids=(pids)
       if pids.any?
         open(pid_file, 'w') {|f| f << pids.join("\n") << "\n"}
       else
-        remove_pidfile
+        File.unlink(pid_file) if File.exists?(pid_file)
+      end
+      @pids = pids
+    end
+
+    def pids
+      @pids ||= begin
+        if File.exist?(pid_file)
+          File.readlines(pid_file).collect {|p| p.to_i}
+        else
+          []
+        end
       end
     end
 
-    def remove_self_from_pidfile
-      pids = read_pid_file
-      pids.delete(Process.pid)
-      rewrite_pidfile(pids)
+    def instances=(num)
+      @instances = num
     end
 
-    def remove_pidfile
-      File.unlink(pid_file) if File.exists?(pid_file)
+    def instances
+      @instances ||= 1
     end
 
-    def read_pid_file
-      if File.exist?(pid_file)
-        File.readlines(pid_file).collect {|p| p.to_i}
-      else
-        []
-      end
+    def pluarlize(name, num)
+      num == 1 ? name : "#{name}s"
+    end
+
+    def running?
+      @running || false
+    end
+
+    def running=(bool)
+      @running = bool
+    end
+
+    def restarted?
+      @restarted || false
+    end
+
+    def restarted=(bool)
+      @restarted = bool
+    end
+
+    def ontop?
+      options[:ontop]
     end
 
     def log_prefix?
-      options[:log_prefix]      
+      options[:log_prefix] || true
     end                    
     
     LOG_PATHS = ['log/', 'logs/', '../log/', '../logs/', '../../log', '../../logs', '.']
@@ -454,7 +472,7 @@ module ICanDaemonize
     end
 
     def script_name
-      @script_name ||= File.basename($0)
+      @script_name ||= File.basename($0).gsub('.rb', '')
     end
 
     def script_name=(script_name)
