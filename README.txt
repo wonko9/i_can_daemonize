@@ -62,7 +62,7 @@ Your daemon can be called with a number of options
 You can add your own command line options by using the 'arg' class macro.  
 See http://www.ruby-doc.org/stdlib/libdoc/optparse/rdoc/classes/OptionParser.html for more info on OptionParser.
   
-  arg '--scott-rocks', 'Does scott rock?') do |value|
+  arg('--scott-rocks', 'Does scott rock?') do |value|
     @scott_rocks = value
   end
   
