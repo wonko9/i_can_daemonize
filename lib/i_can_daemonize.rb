@@ -278,7 +278,7 @@ module ICanDaemonize
             living_pids << pid
           else
             $stderr.puts "Removing stale pid: #{pid}..."
-            pids -= [pid]
+            pids.delete(pid)
             self.pids = pids
           end
         end

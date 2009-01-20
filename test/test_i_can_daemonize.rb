@@ -1,7 +1,7 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
 
 class TestICanDaemonize < Test::Unit::TestCase
-  DEFAULT_LOG_FILE = File.join(File.dirname(__FILE__), 'test_daemon.rb.log')
+  DEFAULT_LOG_FILE = File.dirname(__FILE__) + '/test_daemon.rb.log'
 
   def setup
     File.delete(TEST_FILE) if File.exist?(TEST_FILE)
@@ -34,6 +34,14 @@ class TestICanDaemonize < Test::Unit::TestCase
     `ruby #{@daemon} --test test -s short-test start`
     `ruby #{@daemon} stop`
     assert_equal "test|short-test", File.read(TEST_FILE)
+  end
+
+  test "delete stale pid" do
+    pidfile = File.dirname(__FILE__) + '/testpids.pid'
+    File.open(pidfile, 'w'){|f| f << '999999999'}
+    `ruby #{@daemon} start --pid-file=#{pidfile}`
+    `ruby #{@daemon} stop --pid-file=#{pidfile}`
+    assert !File.exist?(pidfile)
   end
 
 end
