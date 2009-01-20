@@ -167,7 +167,7 @@ module ICanDaemonize
       return unless ok_to_start?
 
       options.merge!(opts)
-      puts "Starting #{instances_to_start} #{script_name} #{pluarlize('instance', instances_to_start)}..."
+      puts "Starting #{instances_to_start} #{script_name} #{pluralize('instance', instances_to_start)}..."
       puts "Logging to: #{log_file}" unless ontop?
       
       unless ontop?
@@ -293,7 +293,7 @@ module ICanDaemonize
     # stop the daemon, nicely at first, and then forcefully if necessary
     def stop_daemons
       self.running = false      
-      puts "Stopping #{instances} #{script_name} #{pluarlize('instance', instances)}..."
+      puts "Stopping #{instances} #{script_name} #{pluralize('instance', instances)}..."
       if pids.empty?
         $stderr.puts "#{script_name} doesn't appear to be running"
         exit
@@ -421,7 +421,7 @@ module ICanDaemonize
       @instances ||= 1
     end
 
-    def pluarlize(name, num)
+    def pluralize(name, num)
       num == 1 ? name : "#{name}s"
     end
 
