@@ -283,7 +283,7 @@ module ICanDaemonize
           end
         end
         if instances > 0 and living_pids.size >= instances
-          $stderr.puts "#{script_name} is already running #{living_pids.size} out of #{pluralize('instance', instances)}"
+          $stderr.puts "#{script_name} is already running #{living_pids.size} out of #{instances} #{pluralize('instance', instances)}"
           return false          
         end
       end
