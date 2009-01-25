@@ -1,7 +1,7 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
 
 class TestICanDaemonize < Test::Unit::TestCase
-  DEFAULT_LOG_FILE = File.dirname(__FILE__) + '/test_daemon.rb.log'
+  DEFAULT_LOG_FILE = File.dirname(__FILE__) + '/simple_daemon.log'
 
   def setup
     File.delete(TEST_FILE) if File.exist?(TEST_FILE)
