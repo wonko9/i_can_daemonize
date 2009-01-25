@@ -138,6 +138,9 @@ module ICanDaemonize
     # <tt>:timeout</tt> Fixnum (DEFAULT 0)
     #  Timeout in if block does not execute withing passed number of seconds
     #
+    # <tt>:kill_timeout</tt> Fixnum (DEFAULT 120)
+    #  Wait number of seconds before using kill -9 on daemon
+    #
     # <tt>:die_on_timeout</tt> BOOL (DEFAULT False)
     #  Should the daemon continue running if a block times out, or just run the block again
     #
@@ -209,6 +212,7 @@ module ICanDaemonize
     def run_block(&block)
       loop do
         break unless running?
+
         if options[:timeout]
           begin
             Timeout::timeout(options[:timeout].to_i) do
@@ -223,13 +227,14 @@ module ICanDaemonize
           end            
         else
           block.call if block
-          
         end
+
         if options[:loop_every]
           sleep options[:loop_every].to_i
         elsif not block
           sleep 0.1
         end
+
         break if should_exit?
         raise DieTime.new('Die if conditions were met!') if should_die?
       end                    
@@ -314,7 +319,7 @@ module ICanDaemonize
       $stdout.puts("Stopping pid #{pid} with #{signal}...")
       begin
         Process.kill(signal, pid)             
-        if pid_running?(pid, options[:timeout] || 120)
+        if pid_running?(pid, options[:kill_timeout] || 120)
           $stdout.puts("Using kill -9 #{pid}")
           Process.kill(9, pid)
         else
