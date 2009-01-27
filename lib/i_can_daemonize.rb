@@ -38,7 +38,7 @@ module ICanDaemonize
 
         opt.on_tail('-h', '--help', 'Show this message') do
           puts opt
-          exit
+          exit(1)
         end
 
         opt.on('--loop-every=SECONDS', 'How long to sleep between each loop') do |value|
@@ -305,7 +305,7 @@ module ICanDaemonize
       puts "Stopping #{instances} #{script_name} #{pluralize('instance', instances)}..."
       if pids.empty?
         $stderr.puts "#{script_name} doesn't appear to be running"
-        exit
+        exit(1)
       end
       pids.each_with_index do |pid, ii|
         kill_pid(pid)
