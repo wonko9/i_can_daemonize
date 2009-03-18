@@ -12,6 +12,9 @@ class SimpleDaemon
     @short_test = value
   end
 
+  sig(:int, :term) do
+  end
+
   counter = 0
   daemonize do
     if @options[:loop_every]

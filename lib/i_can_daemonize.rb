@@ -118,8 +118,10 @@ module ICanDaemonize
       callbacks[:after] = block
     end
 
-    def sig(signal, &block)
-      callbacks["sig_#{signal}".to_sym] = block
+    def sig(*signals, &block)
+      signals.each do |s|
+        callbacks["sig_#{s}".to_sym] = block
+      end
     end
 
     def die_if(method=nil,&block)
