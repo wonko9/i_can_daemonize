@@ -304,14 +304,15 @@ module ICanDaemonize
     # stop the daemon, nicely at first, and then forcefully if necessary
     def stop_daemons
       self.running = false      
-      puts "Stopping #{instances} #{script_name} #{pluralize('instance', instances)}..."
+      pids_to_stop = @instances || pids.size
+      puts "Stopping #{pids_to_stop} #{script_name} #{pluralize('instance', pids_to_stop)}..."
       if pids.empty?
         $stderr.puts "#{script_name} doesn't appear to be running"
         exit(1)
       end
       pids.each_with_index do |pid, ii|
         kill_pid(pid)
-        break if ii == (instances - 1)
+        break if ii == (pids_to_stop - 1)
       end
     end     
 
@@ -429,7 +430,7 @@ module ICanDaemonize
     end
 
     def instances
-      @instances ||= 1
+      @instances || 1
     end
 
     def pluralize(name, num)
