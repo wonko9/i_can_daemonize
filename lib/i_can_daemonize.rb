@@ -116,6 +116,8 @@ module ICanDaemonize
         stop_daemons
       elsif ARGV.include?('restart')
         restart_daemons
+      elsif ARGV.include?('rotate')
+        rotate_daemons
       elsif ARGV.include?('start') or ontop?
         self.running   = true
         self.restarted = true if ARGV.include?('HUP')
@@ -355,6 +357,22 @@ module ICanDaemonize
       end
     end     
 
+    def rotate_daemons
+      if pids.empty?
+        $stdout.puts "#{script_name} doesn't appear to be running!"
+        exit(1)
+      end
+
+      $stdout.puts "Sending SIGUSR1 to #{pids.join(', ')} ..."
+      pids.each do |pid|
+        begin 
+          Process.kill('USR1', pid)
+        rescue Errno::ESRCH
+          $stdout.puts("Couldn't send USR1 #{pid} as it wasn't running")
+        end
+      end
+    end
+
     def restart_daemons
       pids.each do |pid|
         kill_pid(pid, 'HUP')
@@ -420,13 +438,9 @@ module ICanDaemonize
       return false
     end  
 
-    LOG_FORMAT  = '%-6d %-19s %s'
-    TIME_FORMAT = '%Y/%m/%d %H:%M:%S'
     def reopen_filehandes
-      STDIN.reopen('/dev/null')
- 
       if @logger 
-        @logger.debug "CAUGHT USR1, CLOSE & REOPEN TIME!"     
+        @logger.debug "-- CLOSING AND REOPENING LOG FILE! -- "
         @logger.close
       end
 
@@ -434,6 +448,11 @@ module ICanDaemonize
       @logger.formatter = LoggerFormatter.new
       $stdout = LoggerFauxIO.new(@logger, Logger::INFO )
       $stderr = LoggerFauxIO.new(@logger, Logger::ERROR)
+
+      ## make sure we're thourghly detached from our parents
+      STDIN.reopen('/dev/null')
+      STDOUT.reopen('/dev/null')
+      STDERR.reopen('/dev/null')
     end
 
     def remove_pid!(pid=Process.pid)
