@@ -227,6 +227,7 @@ module ICanDaemonize
             trap('TERM') { callback!(:sig_term) ; self.running = false     }
             trap('INT')  { callback!(:sig_int)  ; Process.kill('TERM', $$) }
             trap('HUP')  { callback!(:sig_hup)  ; restart_self             }
+            trap('USR1') { callback!(:sig_usr1) ; reopen_filehandes        }
 
             sess_id = Process.setsid
             reopen_filehandes
@@ -423,11 +424,16 @@ module ICanDaemonize
     TIME_FORMAT = '%Y/%m/%d %H:%M:%S'
     def reopen_filehandes
       STDIN.reopen('/dev/null')
-      
-     @logger = Logger.new(log_file,'daily')
-     @logger.formatter = LoggerFormatter.new
-     $stdout = LoggerFauxIO.new(@logger, Logger::INFO )
-     $stderr = LoggerFauxIO.new(@logger, Logger::ERROR)
+ 
+      if @logger 
+        @logger.debug "CAUGHT USR1, CLOSE & REOPEN TIME!"     
+        @logger.close
+      end
+
+      @logger = Logger.new(log_file)
+      @logger.formatter = LoggerFormatter.new
+      $stdout = LoggerFauxIO.new(@logger, Logger::INFO )
+      $stderr = LoggerFauxIO.new(@logger, Logger::ERROR)
     end
 
     def remove_pid!(pid=Process.pid)
