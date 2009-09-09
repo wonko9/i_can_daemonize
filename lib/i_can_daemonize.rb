@@ -1,6 +1,5 @@
 require 'optparse'
 require 'timeout'    
-require 'logger'
 
 module ICanDaemonize
   class DieTime < StandardError; end
@@ -25,45 +24,8 @@ module ICanDaemonize
     end    
   end
 
-  ## Extend Logger::Formatter so we can maintain compatibility with the old
-  ## i_can_daemonize log format 
-  class LoggerFormatter < Logger::Formatter
-    Format = "%-6d %-19s %s\n"
-
-    def initialize 
-      @datetime_format = '%Y/%m/%d %H:%M:%S'
-    end
-
-    def call(severity, time, progname, msg)
-      Format % [$$, format_datetime(time), msg2str(msg)]
-    end
-  end
- 
-  ## Fake enough of the IO interface so that puts and write to STDOUT & STDERR
-  ## continue to magically work. 
-  class LoggerFauxIO
-    def initialize(logger, level=Logger::INFO)
-      @logger = logger
-      @level  = level
-    end
-
-    def write(string)
-      ## don't log when string == \n; which due to some whackyness with 
-      ## Kernel#puts which happens more than you would probably expect. 
-      return 1 if string.size == 1 && string[0] == 10
-
-      @logger.add @level, string
-      return string.size
-    end
-
-    def puts(*args)
-      args.flatten.each { |arg| @logger.add @level, arg }
-      return nil
-    end
-  end
-
   module ClassMethods  
-    
+ 
     def initialize_options    
       @@config             = Config.new
       @@config.script_path = File.expand_path(File.dirname($0))
@@ -438,21 +400,25 @@ module ICanDaemonize
       return false
     end  
 
+    LOG_FORMAT  = '%-6d %-19s %s'
+    TIME_FORMAT = '%Y/%m/%d %H:%M:%S'
     def reopen_filehandes
-      if @logger 
-        @logger.debug "-- CLOSING AND REOPENING LOG FILE! -- "
-        @logger.close
-      end
-
-      @logger = Logger.new(log_file)
-      @logger.formatter = LoggerFormatter.new
-      $stdout = LoggerFauxIO.new(@logger, Logger::INFO )
-      $stderr = LoggerFauxIO.new(@logger, Logger::ERROR)
-
-      ## make sure we're thourghly detached from our parents
       STDIN.reopen('/dev/null')
-      STDOUT.reopen('/dev/null')
-      STDERR.reopen('/dev/null')
+      STDOUT.reopen(log_file, 'a')
+      STDOUT.sync = true          
+      STDERR.reopen(STDOUT)
+
+      if log_prefix?
+        def STDOUT.write(string)
+          if @no_prefix
+            @no_prefix = false if string[-1, 1] == "\n"
+          else
+            string = LOG_FORMAT % [$$, Time.now.strftime(TIME_FORMAT), string]
+            @no_prefix = true              
+          end
+          super(string)
+        end
+      end
     end
 
     def remove_pid!(pid=Process.pid)
@@ -544,5 +510,6 @@ module ICanDaemonize
     def script_name=(script_name)
       @script_name = script_name
     end
+
   end
 end
