@@ -482,7 +482,13 @@ module ICanDaemonize
     end                    
     
     LOG_PATHS = ['log/', 'logs/', '../log/', '../logs/', '../../log', '../../logs', '.']
-    LOG_PATHS.unshift("#{RAILS_ROOT}/log") if defined?(RAILS_ROOT)
+    
+    if defined?(Rails)
+      LOG_PATHS.unshift(Rails.root.join('log'))
+    elsif defined?(RAILS_ROOT)
+      LOG_PATHS.unshift("#{RAILS_ROOT}/log")
+    end
+    
     def log_dir
       options[:log_dir] ||= begin
         LOG_PATHS.detect do |path|
