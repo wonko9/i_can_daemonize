@@ -484,7 +484,7 @@ module ICanDaemonize
     LOG_PATHS = ['log/', 'logs/', '../log/', '../logs/', '../../log', '../../logs', '.']
     
     if defined?(Rails)
-      LOG_PATHS.unshift(Rails.root.join('log'))
+      LOG_PATHS.unshift(Rails.root.join('log')) unless Rails.root.nil?
     elsif defined?(RAILS_ROOT)
       LOG_PATHS.unshift("#{RAILS_ROOT}/log")
     end
