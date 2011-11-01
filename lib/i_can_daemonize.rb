@@ -191,7 +191,7 @@ module ICanDaemonize
             trap('TERM') { callback!(:sig_term) ; self.running = false     }
             trap('INT')  { callback!(:sig_int)  ; Process.kill('TERM', $$) }
             trap('HUP')  { callback!(:sig_hup)  ; restart_self             }
-            trap('USR1') { callback!(:sig_usr1) ; reopen_filehandes        }
+            trap('USR1') { callback!(:sig_usr1) ; puts "Reopening LOG filehandle"; reopen_filehandes        }
 
             sess_id = Process.setsid
             reopen_filehandes
@@ -379,7 +379,8 @@ module ICanDaemonize
       cmd << 'HUP ' unless ARGV.include?('HUP')
       cmd << ARGV.join(' ')
       puts "Restarting #{cmd} pid: #{$$}..."
-      system(cmd)        
+      system(cmd)  
+      sleep 2
       Process.kill('TERM', $$)
     end
         
